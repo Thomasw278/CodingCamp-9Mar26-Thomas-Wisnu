@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThemeComponent Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-suite {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .test-suite h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #ccc;
+        }
+        .test-case.pass {
+            border-left-color: #4caf50;
+            background-color: #f1f8f4;
+        }
+        .test-case.fail {
+            border-left-color: #f44336;
+            background-color: #fef1f0;
+        }
+        .test-name {
+            font-weight: bold;
+        }
+        .test-error {
+            color: #d32f2f;
+            margin-top: 5px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            font-size: 1.2em;
+        }
+        .summary.success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .summary.failure {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        #theme-demo {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+        body.light-theme #theme-demo {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        body.dark-theme #theme-demo {
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <h1>ThemeComponent Tests</h1>
+    
+    <div id="theme-demo">
+        <h3>Theme Demo Area</h3>
+        <p>Current theme: <span id="current-theme">light</span></p>
+        <button id="theme-toggle-btn">Toggle Theme</button>
+    </div>
+
+    <div id="test-results"></div>
+    <div id="test-summary"></div>
+
+    <script src="../js/app.js"></script>
+    <script>
+        // Simple test framework for browser
+        class BrowserTestRunner {
+            constructor() {
+                this.passed = 0;
+                this.failed = 0;
+                this.results = [];
+            }
+
+            describe(name, fn) {
+                const suite = { name, tests: [] };
+                this.currentSuite = suite;
+                this.results.push(suite);
+                fn();
+            }
+
+            it(name, fn) {
+                try {
+                    fn();
+                    this.passed++;
+                    this.currentSuite.tests.push({ name, passed: true });
+                } catch (error) {
+                    this.failed++;
+                    this.currentSuite.tests.push({ name, passed: false, error: error.message });
+                }
+            }
+
+            expect(actual) {
+                return {
+                    toBe(expected) {
+                        if (actual !== expected) {
+                            throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toEqual(expected) {
+                        if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                            throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toBeNull() {
+                        if (actual !== null) {
+                            throw new Error(`Expected null but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toBeTruthy() {
+                        if (!actual) {
+                            throw new Error(`Expected truthy value but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toBeFalsy() {
+                        if (actual) {
+                            throw new Error(`Expected falsy value but got ${JSON.stringify(actual)}`);
+                        }
+                    }
+                };
+            }
+
+            render() {
+                const resultsContainer = document.getElementById('test-results');
+                const summaryContainer = document.getElementById('test-summary');
+
+                // Render test suites
+                this.results.forEach(suite => {
+                    const suiteDiv = document.createElement('div');
+                    suiteDiv.className = 'test-suite';
+
+                    const suiteTitle = document.createElement('h2');
+                    suiteTitle.textContent = suite.name;
+                    suiteDiv.appendChild(suiteTitle);
+
+                    suite.tests.forEach(test => {
+                        const testDiv = document.createElement('div');
+                        testDiv.className = `test-case ${test.passed ? 'pass' : 'fail'}`;
+
+                        const testName = document.createElement('div');
+                        testName.className = 'test-name';
+                        testName.textContent = `${test.passed ? '✓' : '✗'} ${test.name}`;
+                        testDiv.appendChild(testName);
+
+                        if (!test.passed && test.error) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'test-error';
+                            errorDiv.textContent = test.error;
+                            testDiv.appendChild(errorDiv);
+                        }
+
+                        suiteDiv.appendChild(testDiv);
+                    });
+
+                    resultsContainer.appendChild(suiteDiv);
+                });
+
+                // Render summary
+                const total = this.passed + this.failed;
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = `summary ${this.failed === 0 ? 'success' : 'failure'}`;
+                summaryDiv.innerHTML = `
+                    <strong>Test Summary:</strong><br>
+                    ${this.passed} passed, ${this.failed} failed, ${total} total
+                `;
+                summaryContainer.appendChild(summaryDiv);
+            }
+        }
+
+        // Helper function to reset ThemeComponent state
+        function resetThemeComponent() {
+            localStorage.clear();
+            document.body.classList.remove('light-theme', 'dark-theme');
+            ThemeComponent.currentTheme = 'light';
+            ThemeComponent.toggleButton = null;
+        }
+
+        // Run tests
+        const runner = new BrowserTestRunner();
+
+        // Test Suite: Theme Toggle Functionality
+        runner.describe('Theme Toggle Functionality', () => {
+            runner.it('should toggle from light to dark theme', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                
+                ThemeComponent.toggle();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('dark');
+                runner.expect(document.body.classList.contains('dark-theme')).toBe(true);
+                runner.expect(document.body.classList.contains('light-theme')).toBe(false);
+            });
+
+            runner.it('should toggle from dark to light theme', () => {
+                resetThemeComponent();
+                StorageManager.set('theme', 'dark');
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('dark');
+                
+                ThemeComponent.toggle();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                runner.expect(document.body.classList.contains('light-theme')).toBe(true);
+                runner.expect(document.body.classList.contains('dark-theme')).toBe(false);
+            });
+
+            runner.it('should toggle multiple times correctly', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                
+                ThemeComponent.toggle();
+                runner.expect(ThemeComponent.getTheme()).toBe('dark');
+                
+                ThemeComponent.toggle();
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                
+                ThemeComponent.toggle();
+                runner.expect(ThemeComponent.getTheme()).toBe('dark');
+            });
+        });
+
+        // Test Suite: Theme Persistence
+        runner.describe('Theme Persistence', () => {
+            runner.it('should persist theme to Local Storage when set', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                ThemeComponent.setTheme('dark');
+                
+                const savedTheme = StorageManager.get('theme');
+                runner.expect(savedTheme).toBe('dark');
+            });
+
+            runner.it('should persist theme when toggling', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                ThemeComponent.toggle();
+                
+                const savedTheme = StorageManager.get('theme');
+                runner.expect(savedTheme).toBe('dark');
+            });
+
+            runner.it('should load saved theme on initialization', () => {
+                resetThemeComponent();
+                StorageManager.set('theme', 'dark');
+                
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('dark');
+                runner.expect(document.body.classList.contains('dark-theme')).toBe(true);
+            });
+
+            runner.it('should apply saved light theme on initialization', () => {
+                resetThemeComponent();
+                StorageManager.set('theme', 'light');
+                
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                runner.expect(document.body.classList.contains('light-theme')).toBe(true);
+            });
+        });
+
+        // Test Suite: Default Theme Behavior
+        runner.describe('Default Theme Behavior', () => {
+            runner.it('should default to light theme when no preference is stored', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                runner.expect(document.body.classList.contains('light-theme')).toBe(true);
+            });
+
+            runner.it('should default to light theme when invalid theme is stored', () => {
+                resetThemeComponent();
+                StorageManager.set('theme', 'invalid-theme');
+                
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+                runner.expect(document.body.classList.contains('light-theme')).toBe(true);
+            });
+
+            runner.it('should default to light theme when null is stored', () => {
+                resetThemeComponent();
+                StorageManager.set('theme', null);
+                
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+            });
+        });
+
+        // Test Suite: Theme Application to DOM
+        runner.describe('Theme Application to DOM', () => {
+            runner.it('should apply light-theme class to body for light theme', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                ThemeComponent.setTheme('light');
+                
+                runner.expect(document.body.classList.contains('light-theme')).toBe(true);
+                runner.expect(document.body.classList.contains('dark-theme')).toBe(false);
+            });
+
+            runner.it('should apply dark-theme class to body for dark theme', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                ThemeComponent.setTheme('dark');
+                
+                runner.expect(document.body.classList.contains('dark-theme')).toBe(true);
+                runner.expect(document.body.classList.contains('light-theme')).toBe(false);
+            });
+
+            runner.it('should remove previous theme class when switching themes', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                ThemeComponent.setTheme('light');
+                runner.expect(document.body.classList.contains('light-theme')).toBe(true);
+                
+                ThemeComponent.setTheme('dark');
+                runner.expect(document.body.classList.contains('light-theme')).toBe(false);
+                runner.expect(document.body.classList.contains('dark-theme')).toBe(true);
+            });
+
+            runner.it('should update button text for light theme', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                ThemeComponent.setTheme('light');
+                
+                runner.expect(ThemeComponent.toggleButton.textContent).toBe('Switch to Dark Mode');
+            });
+
+            runner.it('should update button text for dark theme', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                ThemeComponent.setTheme('dark');
+                
+                runner.expect(ThemeComponent.toggleButton.textContent).toBe('Switch to Light Mode');
+            });
+        });
+
+        // Test Suite: Edge Cases and Validation
+        runner.describe('Edge Cases and Validation', () => {
+            runner.it('should reject invalid theme values', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                const originalTheme = ThemeComponent.getTheme();
+                ThemeComponent.setTheme('invalid');
+                
+                runner.expect(ThemeComponent.getTheme()).toBe(originalTheme);
+            });
+
+            runner.it('should handle setTheme with empty string', () => {
+                resetThemeComponent();
+                ThemeComponent.init();
+                
+                ThemeComponent.setTheme('');
+                
+                runner.expect(ThemeComponent.getTheme()).toBe('light');
+            });
+        });
+
+        // Render results
+        runner.render();
+
+        // Update theme demo
+        function updateThemeDemo() {
+            document.getElementById('current-theme').textContent = ThemeComponent.getTheme();
+        }
+
+        // Initialize theme component for demo
+        resetThemeComponent();
+        ThemeComponent.init();
+        updateThemeDemo();
+
+        // Update demo when theme changes
+        const originalSetTheme = ThemeComponent.setTheme.bind(ThemeComponent);
+        ThemeComponent.setTheme = function(theme) {
+            originalSetTheme(theme);
+            updateThemeDemo();
+        };
+    </script>
+</body>
+</html>

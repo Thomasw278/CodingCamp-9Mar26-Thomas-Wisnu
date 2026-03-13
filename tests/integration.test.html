@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Tests - Productivity Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-suite {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-suite h2 {
+            color: #555;
+            margin-top: 0;
+            font-size: 1.2em;
+        }
+        .test {
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #ddd;
+            background: #fafafa;
+        }
+        .test.pass {
+            border-left-color: #4CAF50;
+            background: #f1f8f4;
+        }
+        .test.fail {
+            border-left-color: #f44336;
+            background: #fef1f0;
+        }
+        .test-name {
+            font-weight: 500;
+        }
+        .test.pass .test-name::before {
+            content: '✓ ';
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .test.fail .test-name::before {
+            content: '✗ ';
+            color: #f44336;
+            font-weight: bold;
+        }
+        .error-message {
+            color: #d32f2f;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin-top: 5px;
+            padding: 5px;
+            background: #ffebee;
+            border-radius: 3px;
+        }
+        .summary {
+            background: #333;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .summary.success {
+            background: #4CAF50;
+        }
+        .summary.failure {
+            background: #f44336;
+        }
+        .summary h2 {
+            margin: 0 0 10px 0;
+        }
+        .stats {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Integration Tests - Productivity Dashboard</h1>
+    <p><strong>Requirements:</strong> 13.1, 13.2, 13.3</p>
+    <div id="test-results"></div>
+    <div id="summary"></div>
+
+    <script src="../js/app.js"></script>
+    <script>
+        // Simple test framework for browser
+        class TestRunner {
+            constructor() {
+                this.passed = 0;
+                this.failed = 0;
+                this.currentSuite = null;
+                this.results = [];
+            }
+
+            describe(name, fn) {
+                this.currentSuite = { name, tests: [] };
+                this.results.push(this.currentSuite);
+                fn();
+            }
+
+            it(name, fn) {
+                try {
+                    fn();
+                    this.passed++;
+                    this.currentSuite.tests.push({ name, passed: true });
+                } catch (error) {
+                    this.failed++;
+                    this.currentSuite.tests.push({ name, passed: false, error: error.message });
+                }
+            }
+
+            expect(actual) {
+                return {
+                    toBe(expected) {
+                        if (actual !== expected) {
+                            throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toEqual(expected) {
+                        if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                            throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toBeNull() {
+                        if (actual !== null) {
+                            throw new Error(`Expected null but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toBeTruthy() {
+                        if (!actual) {
+                            throw new Error(`Expected truthy value but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toBeFalsy() {
+                        if (actual) {
+                            throw new Error(`Expected falsy value but got ${JSON.stringify(actual)}`);
+                        }
+                    },
+                    toContain(expected) {
+                        if (!actual.includes(expected)) {
+                            throw new Error(`Expected ${JSON.stringify(actual)} to contain ${JSON.stringify(expected)}`);
+                        }
+                    },
+                    toBeGreaterThan(expected) {
+                        if (actual <= expected) {
+                            throw new Error(`Expected ${actual} to be greater than ${expected}`);
+                        }
+                    }
+                };
+            }
+
+            render() {
+                const resultsDiv = document.getElementById('test-results');
+                const summaryDiv = document.getElementById('summary');
+
+                // Render test results
+                this.results.forEach(suite => {
+                    const suiteDiv = document.createElement('div');
+                    suiteDiv.className = 'test-suite';
+                    
+                    const suiteTitle = document.createElement('h2');
+                    suiteTitle.textContent = suite.name;
+                    suiteDiv.appendChild(suiteTitle);
+
+                    suite.tests.forEach(test => {
+                        const testDiv = document.createElement('div');
+                        testDiv.className = test.passed ? 'test pass' : 'test fail';
+                        
+                        const testName = document.createElement('div');
+                        testName.className = 'test-name';
+                        testName.textContent = test.name;
+                        testDiv.appendChild(testName);
+
+                        if (!test.passed) {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.className = 'error-message';
+                            errorMsg.textContent = test.error;
+                            testDiv.appendChild(errorMsg);
+                        }
+
+                        suiteDiv.appendChild(testDiv);
+                    });
+
+                    resultsDiv.appendChild(suiteDiv);
+                });
+
+                // Render summary
+                const total = this.passed + this.failed;
+                const summaryClass = this.failed === 0 ? 'summary success' : 'summary failure';
+                summaryDiv.className = summaryClass;
+                summaryDiv.innerHTML = `
+                    <h2>${this.failed === 0 ? '✓ All Tests Passed!' : '✗ Some Tests Failed'}</h2>
+                    <div class="stats">
+                        <strong>${this.passed}</strong> passed, 
+                        <strong>${this.failed}</strong> failed, 
+                        <strong>${total}</strong> total
+                    </div>
+                `;
+            }
+        }
+
+        const runner = new TestRunner();
+
+        // ============================================================================
+        // Integration Test Suite 1: Complete User Workflows
+        // ============================================================================
+
+        runner.describe('Complete User Workflow: Add Task, Start Timer, Toggle Theme', () => {
+            
+            runner.it('should complete full workflow: add task -> start timer -> toggle theme', () => {
+                localStorage.clear();
+                
+                const greetingContainer = document.createElement('div');
+                greetingContainer.innerHTML = '<div id="greeting-message"></div><div id="current-time"></div><div id="current-date"></div>';
+                GreetingComponent.init(greetingContainer);
+                
+                const timerContainer = document.createElement('div');
+                timerContainer.innerHTML = `
+                    <div id="timer-display">25:00</div>
+                    <button id="timer-start">Start</button>
+                    <button id="timer-stop">Stop</button>
+                    <button id="timer-reset">Reset</button>
+                    <input id="timer-duration" type="number" value="25" />
+                `;
+                TimerComponent.init(timerContainer, 25);
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                ThemeComponent.init();
+                
+                // Step 1: Add a task
+                const taskAdded = TaskListComponent.addTask('Complete integration test');
+                runner.expect(taskAdded).toBe(true);
+                runner.expect(TaskListComponent.tasks.length).toBe(1);
+                runner.expect(StorageManager.get('tasks').length).toBe(1);
+                
+                // Step 2: Start timer
+                TimerComponent.start();
+                runner.expect(TimerComponent.isRunning()).toBe(true);
+                
+                // Step 3: Toggle theme
+                const initialTheme = ThemeComponent.currentTheme;
+                ThemeComponent.toggle();
+                const newTheme = ThemeComponent.currentTheme;
+                runner.expect(newTheme).toBe(initialTheme === 'light' ? 'dark' : 'light');
+                runner.expect(StorageManager.get('theme')).toBe(newTheme);
+            });
+
+            runner.it('should handle workflow: add multiple tasks -> sort -> complete -> delete', () => {
+                localStorage.clear();
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option><option value="status">Status</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                TaskListComponent.addTask('Task 1');
+                TaskListComponent.addTask('Task 2');
+                TaskListComponent.addTask('Task 3');
+                runner.expect(TaskListComponent.tasks.length).toBe(3);
+                
+                TaskListComponent.setSortOrder('status');
+                runner.expect(StorageManager.get('taskSortOrder')).toBe('status');
+                
+                const taskId = TaskListComponent.tasks[0].id;
+                TaskListComponent.toggleTask(taskId);
+                runner.expect(TaskListComponent.tasks[0].completed).toBe(true);
+                
+                const taskToDelete = TaskListComponent.tasks[1].id;
+                TaskListComponent.deleteTask(taskToDelete);
+                runner.expect(TaskListComponent.tasks.length).toBe(2);
+                
+                const storedTasks = StorageManager.get('tasks');
+                runner.expect(storedTasks.length).toBe(2);
+            });
+
+            runner.it('should handle workflow: add links -> delete link', () => {
+                localStorage.clear();
+                
+                const linksContainer = document.createElement('div');
+                linksContainer.innerHTML = `
+                    <div id="links-list"></div>
+                    <input id="link-name" type="text" />
+                    <input id="link-url" type="text" />
+                    <button id="link-add">Add</button>
+                `;
+                QuickLinksComponent.init(linksContainer);
+                
+                QuickLinksComponent.addLink('Google', 'https://www.google.com');
+                QuickLinksComponent.addLink('GitHub', 'https://github.com');
+                runner.expect(QuickLinksComponent.links.length).toBe(2);
+                
+                const linkId = QuickLinksComponent.links[0].id;
+                QuickLinksComponent.deleteLink(linkId);
+                runner.expect(QuickLinksComponent.links.length).toBe(1);
+                
+                const storedLinks = StorageManager.get('quickLinks');
+                runner.expect(storedLinks.length).toBe(1);
+                runner.expect(storedLinks[0].name).toBe('GitHub');
+            });
+        });
+
+        // ============================================================================
+        // Integration Test Suite 2: Data Persistence Across Page Reloads
+        // ============================================================================
+
+        runner.describe('Data Persistence Across Page Reloads (Requirements: 13.1, 13.2)', () => {
+            
+            runner.it('should persist and restore all component states after simulated reload', () => {
+                localStorage.clear();
+                
+                // Session 1: Create data
+                GreetingComponent.setUserName('Test User');
+                
+                const timerContainer = document.createElement('div');
+                timerContainer.innerHTML = `
+                    <div id="timer-display">25:00</div>
+                    <button id="timer-start">Start</button>
+                    <button id="timer-stop">Stop</button>
+                    <button id="timer-reset">Reset</button>
+                    <input id="timer-duration" type="number" value="25" />
+                `;
+                TimerComponent.init(timerContainer, 25);
+                TimerComponent.setDuration(30);
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option><option value="status">Status</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                TaskListComponent.addTask('Task 1');
+                TaskListComponent.addTask('Task 2');
+                TaskListComponent.setSortOrder('status');
+                
+                const linksContainer = document.createElement('div');
+                linksContainer.innerHTML = `
+                    <div id="links-list"></div>
+                    <input id="link-name" type="text" />
+                    <input id="link-url" type="text" />
+                    <button id="link-add">Add</button>
+                `;
+                QuickLinksComponent.init(linksContainer);
+                QuickLinksComponent.addLink('GitHub', 'https://github.com');
+                
+                ThemeComponent.init();
+                ThemeComponent.setTheme('dark');
+                
+                // Simulate reload - re-initialize
+                const greetingContainer2 = document.createElement('div');
+                greetingContainer2.innerHTML = '<div id="greeting-message"></div><div id="current-time"></div><div id="current-date"></div>';
+                GreetingComponent.init(greetingContainer2);
+                
+                const timerContainer2 = document.createElement('div');
+                timerContainer2.innerHTML = `
+                    <div id="timer-display">25:00</div>
+                    <button id="timer-start">Start</button>
+                    <button id="timer-stop">Stop</button>
+                    <button id="timer-reset">Reset</button>
+                    <input id="timer-duration" type="number" value="25" />
+                `;
+                TimerComponent.init(timerContainer2);
+                
+                const taskContainer2 = document.createElement('div');
+                taskContainer2.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option><option value="status">Status</option></select>
+                `;
+                TaskListComponent.init(taskContainer2);
+                
+                const linksContainer2 = document.createElement('div');
+                linksContainer2.innerHTML = `
+                    <div id="links-list"></div>
+                    <input id="link-name" type="text" />
+                    <input id="link-url" type="text" />
+                    <button id="link-add">Add</button>
+                `;
+                QuickLinksComponent.init(linksContainer2);
+                
+                ThemeComponent.init();
+                
+                // Verify restoration
+                runner.expect(GreetingComponent.userName).toBe('Test User');
+                runner.expect(TimerComponent.durationMinutes).toBe(30);
+                runner.expect(TaskListComponent.tasks.length).toBe(2);
+                runner.expect(TaskListComponent.sortOrder).toBe('status');
+                runner.expect(QuickLinksComponent.links.length).toBe(1);
+                runner.expect(ThemeComponent.currentTheme).toBe('dark');
+            });
+
+            runner.it('should persist task completion status across reload', () => {
+                localStorage.clear();
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                TaskListComponent.addTask('Task 1');
+                TaskListComponent.addTask('Task 2');
+                TaskListComponent.addTask('Task 3');
+                
+                TaskListComponent.toggleTask(TaskListComponent.tasks[0].id);
+                TaskListComponent.toggleTask(TaskListComponent.tasks[2].id);
+                
+                // Simulate reload
+                const taskContainer2 = document.createElement('div');
+                taskContainer2.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option></select>
+                `;
+                TaskListComponent.init(taskContainer2);
+                
+                runner.expect(TaskListComponent.tasks[0].completed).toBe(true);
+                runner.expect(TaskListComponent.tasks[1].completed).toBe(false);
+                runner.expect(TaskListComponent.tasks[2].completed).toBe(true);
+            });
+        });
+
+        // ============================================================================
+        // Integration Test Suite 3: Error Handling for Storage Failures
+        // ============================================================================
+
+        runner.describe('Error Handling for Storage Failures (Requirement: 13.3)', () => {
+            
+            runner.it('should handle storage unavailability gracefully', () => {
+                // Save original localStorage
+                const originalLocalStorage = window.localStorage;
+                
+                // Mock unavailable storage
+                Object.defineProperty(window, 'localStorage', {
+                    get: function() {
+                        throw new Error('Storage unavailable');
+                    },
+                    configurable: true
+                });
+                
+                const available = StorageManager.isAvailable();
+                runner.expect(available).toBe(false);
+                
+                // Restore localStorage
+                Object.defineProperty(window, 'localStorage', {
+                    value: originalLocalStorage,
+                    configurable: true,
+                    writable: true
+                });
+            });
+
+            runner.it('should return false when set() fails due to storage error', () => {
+                localStorage.clear();
+                
+                // Mock storage failure
+                const originalSetItem = localStorage.setItem;
+                localStorage.setItem = function() {
+                    throw new Error('Storage error');
+                };
+                
+                const result = StorageManager.set('testKey', 'testValue');
+                runner.expect(result).toBe(false);
+                
+                // Restore
+                localStorage.setItem = originalSetItem;
+            });
+
+            runner.it('should return null when get() fails due to storage error', () => {
+                localStorage.clear();
+                StorageManager.set('testKey', 'testValue');
+                
+                const originalGetItem = localStorage.getItem;
+                localStorage.getItem = function() {
+                    throw new Error('Storage error');
+                };
+                
+                const result = StorageManager.get('testKey');
+                runner.expect(result).toBeNull();
+                
+                localStorage.getItem = originalGetItem;
+            });
+
+            runner.it('should handle invalid JSON in storage gracefully', () => {
+                localStorage.clear();
+                localStorage.setItem('tasks', '{invalid json}');
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                runner.expect(TaskListComponent.tasks.length).toBe(0);
+            });
+
+            runner.it('should handle quota exceeded errors', () => {
+                localStorage.clear();
+                
+                const originalSetItem = localStorage.setItem;
+                localStorage.setItem = function() {
+                    throw new Error('QuotaExceededError');
+                };
+                
+                const result = StorageManager.set('largeData', 'x'.repeat(10000));
+                runner.expect(result).toBe(false);
+                
+                localStorage.setItem = originalSetItem;
+            });
+        });
+
+        // ============================================================================
+        // Integration Test Suite 4: All Component Interactions
+        // ============================================================================
+
+        runner.describe('All Component Interactions', () => {
+            
+            runner.it('should allow greeting name to be set and persisted', () => {
+                localStorage.clear();
+                
+                const greetingContainer = document.createElement('div');
+                greetingContainer.innerHTML = '<div id="greeting-message"></div><div id="current-time"></div><div id="current-date"></div>';
+                GreetingComponent.init(greetingContainer);
+                
+                GreetingComponent.setUserName('Integration Test User');
+                
+                runner.expect(GreetingComponent.userName).toBe('Integration Test User');
+                runner.expect(StorageManager.get('userName')).toBe('Integration Test User');
+            });
+
+            runner.it('should allow timer to be started, stopped, and reset', () => {
+                localStorage.clear();
+                
+                const timerContainer = document.createElement('div');
+                timerContainer.innerHTML = `
+                    <div id="timer-display">25:00</div>
+                    <button id="timer-start">Start</button>
+                    <button id="timer-stop">Stop</button>
+                    <button id="timer-reset">Reset</button>
+                    <input id="timer-duration" type="number" value="25" />
+                `;
+                TimerComponent.init(timerContainer, 25);
+                
+                TimerComponent.start();
+                runner.expect(TimerComponent.isRunning()).toBe(true);
+                
+                TimerComponent.stop();
+                runner.expect(TimerComponent.isRunning()).toBe(false);
+                
+                TimerComponent.reset();
+                runner.expect(TimerComponent.remainingSeconds).toBe(25 * 60);
+            });
+
+            runner.it('should allow tasks to be added, edited, completed, and deleted', () => {
+                localStorage.clear();
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                TaskListComponent.addTask('Test task');
+                runner.expect(TaskListComponent.tasks.length).toBe(1);
+                
+                const taskId = TaskListComponent.tasks[0].id;
+                
+                TaskListComponent.editTask(taskId, 'Updated task');
+                runner.expect(TaskListComponent.tasks[0].text).toBe('Updated task');
+                
+                TaskListComponent.toggleTask(taskId);
+                runner.expect(TaskListComponent.tasks[0].completed).toBe(true);
+                
+                TaskListComponent.toggleTask(taskId);
+                runner.expect(TaskListComponent.tasks[0].completed).toBe(false);
+                
+                TaskListComponent.deleteTask(taskId);
+                runner.expect(TaskListComponent.tasks.length).toBe(0);
+            });
+
+            runner.it('should prevent duplicate tasks', () => {
+                localStorage.clear();
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort"><option value="date">Date</option></select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                TaskListComponent.addTask('Duplicate test');
+                runner.expect(TaskListComponent.tasks.length).toBe(1);
+                
+                const result = TaskListComponent.addTask('DUPLICATE TEST');
+                runner.expect(result).toBe(false);
+                runner.expect(TaskListComponent.tasks.length).toBe(1);
+            });
+
+            runner.it('should allow tasks to be sorted by different criteria', () => {
+                localStorage.clear();
+                
+                const taskContainer = document.createElement('div');
+                taskContainer.innerHTML = `
+                    <ul id="task-list"></ul>
+                    <input id="task-input" type="text" />
+                    <button id="task-add">Add</button>
+                    <select id="task-sort">
+                        <option value="date">Date</option>
+                        <option value="status">Status</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                `;
+                TaskListComponent.init(taskContainer);
+                
+                TaskListComponent.addTask('Task 1');
+                TaskListComponent.addTask('Task 2');
+                TaskListComponent.addTask('Task 3');
+                
+                TaskListComponent.toggleTask(TaskListComponent.tasks[1].id);
+                
+                TaskListComponent.setSortOrder('status');
+                runner.expect(TaskListComponent.sortOrder).toBe('status');
+                runner.expect(StorageManager.get('taskSortOrder')).toBe('status');
+                
+                TaskListComponent.setSortOrder('date');
+                runner.expect(TaskListComponent.sortOrder).toBe('date');
+                
+                TaskListComponent.setSortOrder('custom');
+                runner.expect(TaskListComponent.sortOrder).toBe('custom');
+            });
+
+            runner.it('should allow quick links to be added and deleted', () => {
+                localStorage.clear();
+                
+                const linksContainer = document.createElement('div');
+                linksContainer.innerHTML = `
+                    <div id="links-list"></div>
+                    <input id="link-name" type="text" />
+                    <input id="link-url" type="text" />
+                    <button id="link-add">Add</button>
+                `;
+                QuickLinksComponent.init(linksContainer);
+                
+                QuickLinksComponent.addLink('Test Link', 'https://example.com');
+                runner.expect(QuickLinksComponent.links.length).toBe(1);
+                runner.expect(QuickLinksComponent.links[0].name).toBe('Test Link');
+                
+                const linkId = QuickLinksComponent.links[0].id;
+                QuickLinksComponent.deleteLink(linkId);
+                runner.expect(QuickLinksComponent.links.length).toBe(0);
+            });
+
+            runner.it('should validate URLs when adding quick links', () => {
+                localStorage.clear();
+                
+                const linksContainer = document.createElement('div');
+                linksContainer.innerHTML = `
+                    <div id="links-list"></div>
+                    <input id="link-name" type="text" />
+                    <input id="link-url" type="text" />
+                    <button id="link-add">Add</button>
+                `;
+                QuickLinksComponent.init(linksContainer);
+                
+                const result = QuickLinksComponent.addLink('Invalid', 'not-a-url');
+                runner.expect(result).toBe(false);
+                runner.expect(QuickLinksComponent.links.length).toBe(0);
+                
+                const validResult = QuickLinksComponent.addLink('Valid', 'https://valid.com');
+                runner.expect(validResult).toBe(true);
+                runner.expect(QuickLinksComponent.links.length).toBe(1);
+            });
+
+            runner.it('should allow theme to be toggled between light and dark', () => {
+                localStorage.clear();
+                
+                ThemeComponent.init();
+                
+                runner.expect(ThemeComponent.currentTheme).toBe('light');
+                
+                ThemeComponent.toggle();
+                runner.expect(ThemeComponent.currentTheme).toBe('dark');
+                runner.expect(StorageManager.get('theme')).toBe('dark');
+                
+                ThemeComponent.toggle();
+                runner.expect(ThemeComponent.currentTheme).toBe('light');
+                runner.expect(StorageManager.get('theme')).toBe('light');
+            });
+        });
+
+        // Render results
+        runner.render();
+    </script>
+</body>
+</html>

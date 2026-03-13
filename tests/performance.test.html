@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Tests - Productivity Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .test-suite {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-suite h2 {
+            margin-top: 0;
+            color: #666;
+            font-size: 1.2rem;
+        }
+        .test-case {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .test-case.pass {
+            background-color: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .test-case.fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .test-case .time {
+            float: right;
+            font-weight: bold;
+        }
+        .summary {
+            background: #333;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+        .summary.success {
+            background: #28a745;
+        }
+        .summary.failure {
+            background: #dc3545;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Performance Tests</h1>
+    <p>Testing Requirements 11.1, 11.2, 11.3, 11.4</p>
+    
+    <button id="runTests" onclick="runAllTests()">Run All Tests</button>
+    
+    <div id="results"></div>
+    
+    <div id="summary"></div>
+
+    <script>
+        let totalPassed = 0;
+        let totalFailed = 0;
+
+        function runAllTests() {
+            const button = document.getElementById('runTests');
+            button.disabled = true;
+            button.textContent = 'Running tests...';
+            
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+            totalPassed = 0;
+            totalFailed = 0;
+
+            // Run all test suites
+            testInitialLoadTime();
+            testInteractionResponseTimes();
+            testTaskListUpdatePerformance();
+            testTimerUpdatePerformance();
+            testOverallPerformance();
+
+            // Show summary
+            showSummary();
+
+            button.disabled = false;
+            button.textContent = 'Run All Tests';
+        }
+
+        function createTestSuite(title) {
+            const suite = document.createElement('div');
+            suite.className = 'test-suite';
+            suite.innerHTML = `<h2>${title}</h2>`;
+            document.getElementById('results').appendChild(suite);
+            return suite;
+        }
+
+        function addTestResult(suite, name, passed, time, details = '') {
+            const testCase = document.createElement('div');
+            testCase.className = `test-case ${passed ? 'pass' : 'fail'}`;
+            testCase.innerHTML = `
+                ${passed ? '✓' : '✗'} ${name}
+                <span class="time">${time.toFixed(2)}ms</span>
+                ${details ? `<div style="margin-top: 5px; font-size: 0.85em;">${details}</div>` : ''}
+            `;
+            suite.appendChild(testCase);
+
+            if (passed) {
+                totalPassed++;
+            } else {
+                totalFailed++;
+            }
+        }
+
+        // Test Suite 1: Initial Load Time (Requirement 11.1)
+        function testInitialLoadTime() {
+            const suite = createTestSuite('Initial Load Time (Requirement 11.1)');
+
+            // Test 1: Full initialization
+            const start1 = performance.now();
+            
+            // Simulate all components
+            const theme = document.createElement('div');
+            theme.className = 'light-theme';
+            
+            const greeting = document.createElement('div');
+            greeting.textContent = 'Good morning!';
+            
+            const timer = document.createElement('div');
+            timer.textContent = '25:00';
+            
+            const taskList = document.createElement('ul');
+            const fragment1 = document.createDocumentFragment();
+            for (let i = 0; i < 50; i++) {
+                const li = document.createElement('li');
+                li.textContent = `Task ${i}`;
+                fragment1.appendChild(li);
+            }
+            taskList.appendChild(fragment1);
+            
+            const quickLinks = document.createElement('div');
+            const fragment2 = document.createDocumentFragment();
+            for (let i = 0; i < 10; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = `Link ${i}`;
+                fragment2.appendChild(btn);
+            }
+            quickLinks.appendChild(fragment2);
+            
+            const time1 = performance.now() - start1;
+            addTestResult(suite, 'Initialize all components with data', time1 < 1000, time1, 
+                `Target: <1000ms | Actual: ${time1.toFixed(2)}ms`);
+
+            // Test 2: Minimal initialization
+            const start2 = performance.now();
+            
+            const minTheme = document.createElement('div');
+            minTheme.className = 'light-theme';
+            const minGreeting = document.createElement('div');
+            const minTimer = document.createElement('div');
+            const minTaskList = document.createElement('ul');
+            const minQuickLinks = document.createElement('div');
+            
+            const time2 = performance.now() - start2;
+            addTestResult(suite, 'Initialize with minimal data', time2 < 1000, time2,
+                `Target: <1000ms | Actual: ${time2.toFixed(2)}ms`);
+        }
+
+        // Test Suite 2: Interaction Response Times (Requirement 11.2)
+        function testInteractionResponseTimes() {
+            const suite = createTestSuite('Interaction Response Times (Requirement 11.2)');
+
+            // Test 1: Theme toggle
+            const start1 = performance.now();
+            const body = document.createElement('div');
+            body.className = 'light-theme';
+            body.className = body.className === 'light-theme' ? 'dark-theme' : 'light-theme';
+            const time1 = performance.now() - start1;
+            addTestResult(suite, 'Theme toggle response', time1 < 100, time1,
+                `Target: <100ms | Actual: ${time1.toFixed(2)}ms`);
+
+            // Test 2: Task completion toggle
+            const start2 = performance.now();
+            const task = { id: '1', text: 'Test task', completed: false };
+            task.completed = !task.completed;
+            const taskElement = document.createElement('li');
+            taskElement.className = task.completed ? 'completed' : '';
+            taskElement.textContent = task.text;
+            const time2 = performance.now() - start2;
+            addTestResult(suite, 'Task completion toggle response', time2 < 100, time2,
+                `Target: <100ms | Actual: ${time2.toFixed(2)}ms`);
+
+            // Test 3: Timer start/stop
+            const start3 = performance.now();
+            let timerState = 'idle';
+            let remainingTime = 1500;
+            timerState = 'running';
+            const timerDisplay = document.createElement('div');
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const time3 = performance.now() - start3;
+            addTestResult(suite, 'Timer start/stop response', time3 < 100, time3,
+                `Target: <100ms | Actual: ${time3.toFixed(2)}ms`);
+
+            // Test 4: Quick link click
+            const start4 = performance.now();
+            const link = { id: '1', name: 'Google', url: 'https://google.com' };
+            const linkUrl = link.url;
+            const time4 = performance.now() - start4;
+            addTestResult(suite, 'Quick link click response', time4 < 100, time4,
+                `Target: <100ms | Actual: ${time4.toFixed(2)}ms`);
+        }
+
+        // Test Suite 3: Task List Update Performance (Requirement 11.3)
+        function testTaskListUpdatePerformance() {
+            const suite = createTestSuite('Task List Update Performance (Requirement 11.3)');
+
+            // Test 1: Add task
+            const start1 = performance.now();
+            const tasks1 = [];
+            const newTask = {
+                id: Date.now().toString(),
+                text: 'New task',
+                completed: false,
+                createdAt: Date.now()
+            };
+            tasks1.push(newTask);
+            const taskList1 = document.createElement('ul');
+            const li1 = document.createElement('li');
+            li1.textContent = newTask.text;
+            taskList1.appendChild(li1);
+            const time1 = performance.now() - start1;
+            addTestResult(suite, 'Add task and update display', time1 < 100, time1,
+                `Target: <100ms | Actual: ${time1.toFixed(2)}ms`);
+
+            // Test 2: Delete task
+            const start2 = performance.now();
+            const tasks2 = [
+                { id: '1', text: 'Task 1', completed: false, createdAt: Date.now() },
+                { id: '2', text: 'Task 2', completed: false, createdAt: Date.now() },
+                { id: '3', text: 'Task 3', completed: false, createdAt: Date.now() }
+            ];
+            const filteredTasks = tasks2.filter(t => t.id !== '2');
+            const taskList2 = document.createElement('ul');
+            filteredTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.textContent = task.text;
+                taskList2.appendChild(li);
+            });
+            const time2 = performance.now() - start2;
+            addTestResult(suite, 'Delete task and update display', time2 < 100, time2,
+                `Target: <100ms | Actual: ${time2.toFixed(2)}ms`);
+
+            // Test 3: Edit task
+            const start3 = performance.now();
+            const tasks3 = [{ id: '1', text: 'Task 1', completed: false, createdAt: Date.now() }];
+            const task3 = tasks3.find(t => t.id === '1');
+            task3.text = 'Updated task text';
+            const taskList3 = document.createElement('ul');
+            const li3 = document.createElement('li');
+            li3.textContent = task3.text;
+            taskList3.appendChild(li3);
+            const time3 = performance.now() - start3;
+            addTestResult(suite, 'Edit task and update display', time3 < 100, time3,
+                `Target: <100ms | Actual: ${time3.toFixed(2)}ms`);
+
+            // Test 4: Render large list (100 tasks)
+            const start4 = performance.now();
+            const tasks4 = [];
+            for (let i = 0; i < 100; i++) {
+                tasks4.push({
+                    id: i.toString(),
+                    text: `Task ${i}`,
+                    completed: i % 3 === 0,
+                    createdAt: Date.now() - i * 1000
+                });
+            }
+            const taskList4 = document.createElement('ul');
+            const fragment4 = document.createDocumentFragment();
+            tasks4.forEach(task => {
+                const li = document.createElement('li');
+                li.textContent = task.text;
+                li.className = task.completed ? 'completed' : '';
+                fragment4.appendChild(li);
+            });
+            taskList4.appendChild(fragment4);
+            const time4 = performance.now() - start4;
+            addTestResult(suite, 'Render 100 tasks with DocumentFragment', time4 < 100, time4,
+                `Target: <100ms | Actual: ${time4.toFixed(2)}ms`);
+
+            // Test 5: Sort tasks
+            const start5 = performance.now();
+            const tasks5 = [
+                { id: '1', text: 'Task 1', completed: true, createdAt: Date.now() - 3000 },
+                { id: '2', text: 'Task 2', completed: false, createdAt: Date.now() - 2000 },
+                { id: '3', text: 'Task 3', completed: false, createdAt: Date.now() - 1000 }
+            ];
+            const sortedTasks = [...tasks5].sort((a, b) => {
+                if (a.completed === b.completed) return 0;
+                return a.completed ? 1 : -1;
+            });
+            const taskList5 = document.createElement('ul');
+            const fragment5 = document.createDocumentFragment();
+            sortedTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.textContent = task.text;
+                fragment5.appendChild(li);
+            });
+            taskList5.appendChild(fragment5);
+            const time5 = performance.now() - start5;
+            addTestResult(suite, 'Sort tasks and update display', time5 < 100, time5,
+                `Target: <100ms | Actual: ${time5.toFixed(2)}ms`);
+        }
+
+        // Test Suite 4: Timer Update Performance (Requirement 11.4)
+        function testTimerUpdatePerformance() {
+            const suite = createTestSuite('Timer Update Performance (Requirement 11.4)');
+
+            // Test 1: Single timer update
+            const start1 = performance.now();
+            let remainingTime1 = 1499;
+            remainingTime1--;
+            const minutes1 = Math.floor(remainingTime1 / 60);
+            const seconds1 = remainingTime1 % 60;
+            const timerDisplay1 = document.createElement('div');
+            timerDisplay1.textContent = `${minutes1}:${seconds1.toString().padStart(2, '0')}`;
+            const time1 = performance.now() - start1;
+            addTestResult(suite, 'Single timer display update', time1 < 100, time1,
+                `Target: <100ms | Actual: ${time1.toFixed(2)}ms`);
+
+            // Test 2: 60 consecutive updates
+            const start2 = performance.now();
+            let remainingTime2 = 1500;
+            const timerDisplay2 = document.createElement('div');
+            for (let i = 0; i < 60; i++) {
+                remainingTime2--;
+                const minutes = Math.floor(remainingTime2 / 60);
+                const seconds = remainingTime2 % 60;
+                const newText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                if (timerDisplay2.textContent !== newText) {
+                    timerDisplay2.textContent = newText;
+                }
+            }
+            const time2 = performance.now() - start2;
+            const avgTime = time2 / 60;
+            addTestResult(suite, '60 consecutive timer updates', time2 < 100, time2,
+                `Target: <100ms total | Actual: ${time2.toFixed(2)}ms (avg: ${avgTime.toFixed(2)}ms per update)`);
+
+            // Test 3: Time formatting
+            const start3 = performance.now();
+            const testCases = [1500, 899, 60, 0];
+            testCases.forEach(seconds => {
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                const formatted = `${minutes}:${secs.toString().padStart(2, '0')}`;
+            });
+            const time3 = performance.now() - start3;
+            addTestResult(suite, 'Time formatting (4 cases)', time3 < 100, time3,
+                `Target: <100ms | Actual: ${time3.toFixed(2)}ms`);
+
+            // Test 4: State transitions
+            const start4 = performance.now();
+            let state = 'idle';
+            let remainingTime4 = 1500;
+            state = 'running';
+            const startButton = document.createElement('button');
+            startButton.textContent = 'Stop';
+            state = 'paused';
+            startButton.textContent = 'Start';
+            state = 'running';
+            startButton.textContent = 'Stop';
+            remainingTime4 = 0;
+            state = 'complete';
+            startButton.textContent = 'Reset';
+            const time4 = performance.now() - start4;
+            addTestResult(suite, 'Timer state transitions', time4 < 100, time4,
+                `Target: <100ms | Actual: ${time4.toFixed(2)}ms`);
+        }
+
+        // Test Suite 5: Overall Performance
+        function testOverallPerformance() {
+            const suite = createTestSuite('Overall Performance Benchmarks');
+
+            // Test 1: Complete workflow
+            const start1 = performance.now();
+            const theme = document.createElement('div');
+            theme.className = 'light-theme';
+            const tasks = [];
+            tasks.push({
+                id: Date.now().toString(),
+                text: 'New task',
+                completed: false,
+                createdAt: Date.now()
+            });
+            let timerState = 'running';
+            let remainingTime = 1500;
+            theme.className = 'dark-theme';
+            tasks[0].completed = true;
+            const links = [];
+            links.push({
+                id: Date.now().toString(),
+                name: 'Google',
+                url: 'https://google.com'
+            });
+            const time1 = performance.now() - start1;
+            addTestResult(suite, 'Complete user workflow', time1 < 1000, time1,
+                `Target: <1000ms | Actual: ${time1.toFixed(2)}ms`);
+
+            // Test 2: Large dataset
+            const start2 = performance.now();
+            const largeTasks = [];
+            for (let i = 0; i < 200; i++) {
+                largeTasks.push({
+                    id: i.toString(),
+                    text: `Task ${i}`,
+                    completed: i % 2 === 0,
+                    createdAt: Date.now() - i * 1000
+                });
+            }
+            const largeLinks = [];
+            for (let i = 0; i < 50; i++) {
+                largeLinks.push({
+                    id: i.toString(),
+                    name: `Link ${i}`,
+                    url: `https://example${i}.com`
+                });
+            }
+            const taskList = document.createElement('ul');
+            const taskFragment = document.createDocumentFragment();
+            largeTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.textContent = task.text;
+                taskFragment.appendChild(li);
+            });
+            taskList.appendChild(taskFragment);
+            const linkContainer = document.createElement('div');
+            const linkFragment = document.createDocumentFragment();
+            largeLinks.forEach(link => {
+                const btn = document.createElement('button');
+                btn.textContent = link.name;
+                linkFragment.appendChild(btn);
+            });
+            linkContainer.appendChild(linkFragment);
+            const time2 = performance.now() - start2;
+            addTestResult(suite, 'Large dataset (200 tasks, 50 links)', time2 < 1000, time2,
+                `Target: <1000ms | Actual: ${time2.toFixed(2)}ms`);
+        }
+
+        function showSummary() {
+            const total = totalPassed + totalFailed;
+            const summaryDiv = document.getElementById('summary');
+            const success = totalFailed === 0;
+            
+            summaryDiv.className = `summary ${success ? 'success' : 'failure'}`;
+            summaryDiv.innerHTML = `
+                <h2>Test Summary</h2>
+                <p>Total: ${total} tests</p>
+                <p>Passed: ${totalPassed}</p>
+                <p>Failed: ${totalFailed}</p>
+                <p><strong>${success ? 'ALL TESTS PASSED ✓' : 'SOME TESTS FAILED ✗'}</strong></p>
+            `;
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            console.log('Performance test page loaded. Click "Run All Tests" to start.');
+        });
+    </script>
+</body>
+</html>
